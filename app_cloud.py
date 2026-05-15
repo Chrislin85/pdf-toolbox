@@ -3,7 +3,7 @@ import os
 import re
 import tempfile
 
-import fitz
+import pymupdf as fitz
 import streamlit as st
 
 st.set_page_config(page_title="PDF 工具箱", page_icon="📄", layout="wide")
