@@ -278,7 +278,7 @@ with tab_edit:
                             thumb = render_thumbnail(doc, page_idx)
                             st.image(thumb, caption=f"第 {page_idx + 1} 頁", use_container_width=True)
 
-                            btn_cols = st.columns(3)
+                            btn_cols = st.columns([1, 1, 1], gap="small")
                             with btn_cols[0]:
                                 if pos > 0:
                                     if st.button("⬆", key=f"up_{pos}", help="上移"):
@@ -292,10 +292,12 @@ with tab_edit:
                                         st.session_state.edit_order = order
                                         st.rerun()
                             with btn_cols[2]:
-                                if st.button("🗑", key=f"del_{pos}", help="刪除"):
-                                    order.pop(pos)
-                                    st.session_state.edit_order = order
-                                    st.rerun()
+                                with st.popover("🗑", help="刪除"):
+                                    st.write(f"確定刪除第 {page_idx + 1} 頁？")
+                                    if st.button("確定刪除", key=f"confirm_del_{pos}", type="primary"):
+                                        order.pop(pos)
+                                        st.session_state.edit_order = order
+                                        st.rerun()
 
                 st.divider()
 
