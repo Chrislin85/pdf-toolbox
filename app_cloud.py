@@ -9,9 +9,11 @@ import streamlit as st
 st.set_page_config(page_title="PDF 工具箱", page_icon="📄", layout="wide")
 
 st.title("PDF 工具箱")
-st.caption("轉換 Markdown・拆分頁面・合併 PDF，三合一工具")
+st.caption("轉換 Markdown・拆分頁面・合併 PDF・編輯頁面")
 
-tab_convert, tab_split, tab_merge = st.tabs(["📝 轉 Markdown", "✂️ 拆分頁面", "🔗 合併 PDF"])
+tab_convert, tab_split, tab_merge, tab_edit = st.tabs(
+    ["📝 轉 Markdown", "✂️ 拆分頁面", "🔗 合併 PDF", "🖊️ 編輯頁面"]
+)
 
 
 def parse_page_ranges(range_str, total_pages):
@@ -223,3 +225,109 @@ with tab_merge:
             for _, _, _, path in file_info:
                 if os.path.exists(path):
                     os.unlink(path)
+
+
+# ── Tab 4：編輯頁面 ────────────────────────────────────────
+
+def render_thumbnail(doc, page_idx):
+    """將 PDF 頁面渲染成 PNG bytes"""
+    page = doc[page_idx]
+    mat = fitz.Matrix(0.5, 0.5)
+    pix = page.get_pixmap(matrix=mat)
+    return pix.tobytes("png")
+
+
+with tab_edit:
+    st.subheader("編輯頁面")
+    st.caption("預覽頁面縮圖，拖拉重新排序或刪除不要的頁面")
+
+    edit_file = st.file_uploader("上傳要編輯的 PDF", type=["pdf"], key="edit_upload")
+
+    if edit_file is not None:
+        edit_tmp = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                tmp.write(edit_file.getbuffer())
+                edit_tmp = tmp.name
+
+            doc = fitz.open(edit_tmp)
+            total_pages = len(doc)
+
+            if "edit_order" not in st.session_state or st.session_state.get("edit_file_name") != edit_file.name:
+                st.session_state.edit_order = list(range(total_pages))
+                st.session_state.edit_file_name = edit_file.name
+
+            order = st.session_state.edit_order
+
+            st.info(f"📄 {edit_file.name}，共 **{total_pages}** 頁（目前保留 **{len(order)}** 頁）")
+
+            if len(order) == 0:
+                st.warning("所有頁面都已刪除，請重新上傳或重設")
+                if st.button("重設全部頁面", key="edit_reset"):
+                    st.session_state.edit_order = list(range(total_pages))
+                    st.rerun()
+            else:
+                cols_per_row = 4
+                for row_start in range(0, len(order), cols_per_row):
+                    row_items = order[row_start : row_start + cols_per_row]
+                    cols = st.columns(cols_per_row)
+
+                    for col_offset, page_idx in enumerate(row_items):
+                        pos = row_start + col_offset
+                        with cols[col_offset]:
+                            thumb = render_thumbnail(doc, page_idx)
+                            st.image(thumb, caption=f"第 {page_idx + 1} 頁", use_container_width=True)
+
+                            btn_cols = st.columns(3)
+                            with btn_cols[0]:
+                                if pos > 0:
+                                    if st.button("⬆", key=f"up_{pos}", help="上移"):
+                                        order[pos], order[pos - 1] = order[pos - 1], order[pos]
+                                        st.session_state.edit_order = order
+                                        st.rerun()
+                            with btn_cols[1]:
+                                if pos < len(order) - 1:
+                                    if st.button("⬇", key=f"dn_{pos}", help="下移"):
+                                        order[pos], order[pos + 1] = order[pos + 1], order[pos]
+                                        st.session_state.edit_order = order
+                                        st.rerun()
+                            with btn_cols[2]:
+                                if st.button("🗑", key=f"del_{pos}", help="刪除"):
+                                    order.pop(pos)
+                                    st.session_state.edit_order = order
+                                    st.rerun()
+
+                st.divider()
+
+                col_reset, col_download = st.columns(2)
+                with col_reset:
+                    if st.button("重設全部頁面", key="edit_reset_bottom"):
+                        st.session_state.edit_order = list(range(total_pages))
+                        st.rerun()
+                with col_download:
+                    if st.button("產生編輯後的 PDF", key="edit_export"):
+                        with st.spinner("產生中..."):
+                            out = fitz.open()
+                            for p in order:
+                                out.insert_pdf(doc, from_page=p, to_page=p)
+                            buf = io.BytesIO()
+                            out.save(buf)
+                            buf.seek(0)
+                            out.close()
+
+                        base_name = os.path.splitext(edit_file.name)[0]
+                        st.download_button(
+                            label="下載編輯後的 PDF",
+                            data=buf,
+                            file_name=f"{base_name}_edited.pdf",
+                            mime="application/pdf",
+                        )
+
+            doc.close()
+
+        except Exception as e:
+            st.error(f"編輯失敗：{e}")
+
+        finally:
+            if edit_tmp and os.path.exists(edit_tmp):
+                os.unlink(edit_tmp)
