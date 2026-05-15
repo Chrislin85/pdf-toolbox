@@ -238,8 +238,10 @@ def render_thumbnail(doc, page_idx):
 
 
 with tab_edit:
+    from streamlit_sortables import sort_items
+
     st.subheader("編輯頁面")
-    st.caption("預覽頁面縮圖，拖拉重新排序或刪除不要的頁面")
+    st.caption("拖拉左側標籤重新排序，勾選要刪除的頁面，右側即時預覽")
 
     edit_file = st.file_uploader("上傳要編輯的 PDF", type=["pdf"], key="edit_upload")
 
@@ -267,35 +269,42 @@ with tab_edit:
                     st.session_state.edit_order = list(range(total_pages))
                     st.rerun()
             else:
-                cols_per_row = 4
-                for row_start in range(0, len(order), cols_per_row):
-                    row_items = order[row_start : row_start + cols_per_row]
-                    cols = st.columns(cols_per_row)
+                col_sort, col_preview = st.columns([1, 2])
 
-                    for col_offset, page_idx in enumerate(row_items):
-                        pos = row_start + col_offset
-                        with cols[col_offset]:
-                            thumb = render_thumbnail(doc, page_idx)
-                            st.image(thumb, caption=f"第 {page_idx + 1} 頁", use_container_width=True)
+                with col_sort:
+                    st.markdown("**拖拉排序**")
+                    labels = [f"第 {idx + 1} 頁" for idx in order]
+                    sorted_labels = sort_items(labels, direction="vertical")
 
-                            b1, b2, b3 = st.columns(3, gap="small")
-                            with b1:
-                                if pos > 0 and st.button("⬆", key=f"up_{pos}"):
-                                    order[pos], order[pos - 1] = order[pos - 1], order[pos]
-                                    st.session_state.edit_order = order
-                                    st.rerun()
-                            with b2:
-                                with st.popover("🗑"):
-                                    st.write(f"確定刪除第 {page_idx + 1} 頁？")
-                                    if st.button("確定刪除", key=f"confirm_del_{pos}", type="primary"):
-                                        order.pop(pos)
-                                        st.session_state.edit_order = order
-                                        st.rerun()
-                            with b3:
-                                if pos < len(order) - 1 and st.button("⬇", key=f"dn_{pos}"):
-                                    order[pos], order[pos + 1] = order[pos + 1], order[pos]
-                                    st.session_state.edit_order = order
-                                    st.rerun()
+                    label_to_idx = {f"第 {idx + 1} 頁": idx for idx in order}
+                    new_order = [label_to_idx[label] for label in sorted_labels]
+
+                    if new_order != order:
+                        st.session_state.edit_order = new_order
+                        st.rerun()
+
+                    st.markdown("**刪除頁面**")
+                    to_delete = set()
+                    for idx in order:
+                        if st.checkbox(f"刪除第 {idx + 1} 頁", key=f"del_{idx}"):
+                            to_delete.add(idx)
+
+                    if to_delete:
+                        if st.button("確定刪除勾選的頁面", type="primary"):
+                            st.session_state.edit_order = [i for i in order if i not in to_delete]
+                            st.rerun()
+
+                with col_preview:
+                    st.markdown("**頁面預覽**")
+                    cols_per_row = 3
+                    for row_start in range(0, len(order), cols_per_row):
+                        row_items = order[row_start : row_start + cols_per_row]
+                        cols = st.columns(cols_per_row)
+                        for col_offset, page_idx in enumerate(row_items):
+                            with cols[col_offset]:
+                                thumb = render_thumbnail(doc, page_idx)
+                                marked = " ❌" if page_idx in to_delete else ""
+                                st.image(thumb, caption=f"第 {page_idx + 1} 頁{marked}", use_container_width=True)
 
                 st.divider()
 
