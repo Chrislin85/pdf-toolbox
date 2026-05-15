@@ -1,3 +1,0 @@
-streamlit
-markitdown[pdf]
-pymupdf

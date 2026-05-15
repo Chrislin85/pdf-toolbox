@@ -1,0 +1,7 @@
+streamlit
+markitdown[pdf]
+pymupdf
+paddlepaddle<3
+paddleocr<3
+pillow
+numpy

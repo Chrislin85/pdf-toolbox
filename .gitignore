@@ -3,4 +3,3 @@ __pycache__/
 .streamlit/secrets.toml
 啟動.bat
 app.py
-requirements.txt
