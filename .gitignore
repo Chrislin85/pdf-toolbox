@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
+啟動.bat
+app.py
+requirements.txt
