@@ -52,10 +52,14 @@ with tab_convert:
                 tmp_path = tmp.name
 
             with st.spinner("轉換中..."):
-                from markitdown import MarkItDown
-                md = MarkItDown()
-                result = md.convert(tmp_path)
-                md_text = result.text_content
+                doc = fitz.open(tmp_path)
+                pages_text = []
+                for i, page in enumerate(doc):
+                    text = page.get_text().strip()
+                    if text:
+                        pages_text.append(f"<!-- Page {i + 1} -->\n\n{text}")
+                doc.close()
+                md_text = "\n\n---\n\n".join(pages_text)
 
             st.success("轉換完成")
 
