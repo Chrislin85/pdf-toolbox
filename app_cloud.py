@@ -278,26 +278,24 @@ with tab_edit:
                             thumb = render_thumbnail(doc, page_idx)
                             st.image(thumb, caption=f"第 {page_idx + 1} 頁", use_container_width=True)
 
-                            btn_cols = st.columns([1, 1, 1], gap="small")
-                            with btn_cols[0]:
-                                if pos > 0:
-                                    if st.button("⬆", key=f"up_{pos}", help="上移"):
-                                        order[pos], order[pos - 1] = order[pos - 1], order[pos]
-                                        st.session_state.edit_order = order
-                                        st.rerun()
-                            with btn_cols[1]:
-                                if pos < len(order) - 1:
-                                    if st.button("⬇", key=f"dn_{pos}", help="下移"):
-                                        order[pos], order[pos + 1] = order[pos + 1], order[pos]
-                                        st.session_state.edit_order = order
-                                        st.rerun()
-                            with btn_cols[2]:
-                                with st.popover("🗑", help="刪除"):
+                            b1, b2, b3 = st.columns(3, gap="small")
+                            with b1:
+                                if pos > 0 and st.button("⬆", key=f"up_{pos}"):
+                                    order[pos], order[pos - 1] = order[pos - 1], order[pos]
+                                    st.session_state.edit_order = order
+                                    st.rerun()
+                            with b2:
+                                with st.popover("🗑"):
                                     st.write(f"確定刪除第 {page_idx + 1} 頁？")
                                     if st.button("確定刪除", key=f"confirm_del_{pos}", type="primary"):
                                         order.pop(pos)
                                         st.session_state.edit_order = order
                                         st.rerun()
+                            with b3:
+                                if pos < len(order) - 1 and st.button("⬇", key=f"dn_{pos}"):
+                                    order[pos], order[pos + 1] = order[pos + 1], order[pos]
+                                    st.session_state.edit_order = order
+                                    st.rerun()
 
                 st.divider()
 
